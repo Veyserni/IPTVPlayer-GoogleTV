@@ -14,3 +14,8 @@ Google TV / Android TV için IPTV istemcisi.
 
 ## Build
 GitHub Actions > Build Google TV APK.
+
+
+## v0.6.1
+- Streaming katalog yüklenirken ana sekme ve Spor alt kategori seçimi artık yeni batch geldiğinde sıfırlanmaz.
+- 3 saniyelik otomatik gizleme yalnızca oynatıcıdaki Liste ve kanal adı overlay'i için geçerlidir.

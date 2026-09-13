@@ -161,15 +161,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         afterFirstBatch?.invoke()
                     }
                     // Liste bitmeden katalog görünür olur; yeni batch'ler geldikçe büyür.
-                    _state.value = UiState.Ready(accumulated.toList(), isLoading = true)
+                    // Kullanıcı Spor / Canlı / Film gibi bir sekmeye geçtiyse, yeni batch geldiğinde
+                    // seçimi ALL'a sıfırlama. v0.6.0'daki sekme zıplama sorununun nedeni buydu.
+                    val current = _state.value as? UiState.Ready
+                    _state.value = UiState.Ready(
+                        items = accumulated.toList(),
+                        filter = current?.filter ?: CatalogFilter.ALL,
+                        sportGroup = current?.sportGroup,
+                        isLoading = true,
+                    )
                 }
             }.onSuccess { finalItems ->
                 if (firstBatch && finalItems.isNotEmpty()) afterFirstBatch?.invoke()
-                _state.value = UiState.Ready(finalItems, isLoading = false)
+                val current = _state.value as? UiState.Ready
+                _state.value = UiState.Ready(
+                    items = finalItems,
+                    filter = current?.filter ?: CatalogFilter.ALL,
+                    sportGroup = current?.sportGroup,
+                    isLoading = false,
+                )
             }.onFailure { e ->
                 if (accumulated.isNotEmpty()) {
                     // Kısmi liste varsa onu kullanılabilir bırak; ağın sonradan kesilmesi tüm kataloğu çöpe atmasın.
-                    _state.value = UiState.Ready(accumulated.toList(), isLoading = false)
+                    val current = _state.value as? UiState.Ready
+                    _state.value = UiState.Ready(
+                        items = accumulated.toList(),
+                        filter = current?.filter ?: CatalogFilter.ALL,
+                        sportGroup = current?.sportGroup,
+                        isLoading = false,
+                    )
                 } else {
                     _state.value = UiState.Error(e.message ?: "Liste yüklenemedi")
                 }
