@@ -27,3 +27,9 @@ Ayrıntılar: `INSTALL_TCL.md`
 - Manuel Xtream giriş alanı yeni hesap eklemek için açık kalır.
 - Birden fazla Xtream hesabı cihazda saklanabilir ve tek tek unutulabilir.
 - Oynatıcıdaki “Liste” ve kanal adı katmanı 3 saniye sonra otomatik gizlenir.
+
+
+## v0.5.2
+- v0.4.0'daki çalışan liste indirme/parsing yöntemi geri getirildi.
+- Kayıtlı hesaplar ve oynatıcı overlay iyileştirmeleri korunur.
+- “Liste yükleniyor…” yazısı beyazdır.

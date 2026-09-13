@@ -1,7 +1,5 @@
 package com.halit.iptv.data
 
-import java.io.BufferedReader
-import java.io.IOException
 import com.halit.iptv.model.IptvItem
 import com.halit.iptv.model.MediaKind
 import com.halit.iptv.model.SportGroup
@@ -9,16 +7,10 @@ import com.halit.iptv.model.SportGroup
 object M3uParser {
     private val attr = Regex("([\\w-]+)=\"([^\"]*)\"")
 
-    fun parse(text: String): List<IptvItem> = parse(text.reader().buffered())
-
-    fun parse(reader: BufferedReader, deadlineNanos: Long = Long.MAX_VALUE): List<IptvItem> {
+    fun parse(text: String): List<IptvItem> {
         val out = ArrayList<IptvItem>()
         var info: String? = null
-        while (true) {
-            if (System.nanoTime() > deadlineNanos) {
-                throw IOException("Liste yükleme süresi aşıldı")
-            }
-            val raw = reader.readLine() ?: break
+        for (raw in text.lineSequence()) {
             val line = raw.trim()
             when {
                 line.startsWith("#EXTINF", ignoreCase = true) -> info = line
