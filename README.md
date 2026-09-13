@@ -21,3 +21,9 @@ Ayrıntılar: `INSTALL_TCL.md`
 
 ## Yerel test araçları
 `tools/CoreSmokeTest.kt` ve `tools/ScaleSmokeTest.kt`
+
+## v0.5.0
+- Xtream hesapları giriş ekranında kullanıcı adıyla listelenir; kayıtlı hesaba tek tıkla giriş yapılır.
+- Manuel Xtream giriş alanı yeni hesap eklemek için açık kalır.
+- Birden fazla Xtream hesabı cihazda saklanabilir ve tek tek unutulabilir.
+- Oynatıcıdaki “Liste” ve kanal adı katmanı 3 saniye sonra otomatik gizlenir.

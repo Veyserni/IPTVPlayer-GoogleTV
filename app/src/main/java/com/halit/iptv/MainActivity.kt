@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,6 +30,7 @@ import com.halit.iptv.player.PlayerController
 import com.halit.iptv.ui.MainViewModel
 import com.halit.iptv.ui.UiState
 import com.halit.iptv.ui.CatalogFilter
+import com.halit.iptv.ui.SavedLogin
 
 class MainActivity : ComponentActivity() {
     private val vm by viewModels<MainViewModel>()
@@ -48,11 +50,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable private fun LoginScreen(vm: MainViewModel) {
-    val saved = remember { vm.savedLogin }
-    var m3u by remember { mutableStateOf(saved.m3u) }
-    var server by remember { mutableStateOf(saved.server) }
-    var user by remember { mutableStateOf(saved.user) }
-    var pass by remember { mutableStateOf(saved.pass) }
+    var m3u by remember { mutableStateOf(vm.savedM3u) }
+    var server by remember { mutableStateOf("") }
+    var user by remember { mutableStateOf("") }
+    var pass by remember { mutableStateOf("") }
+    var savedAccounts by remember { mutableStateOf(vm.savedAccounts) }
 
     val fieldColors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
@@ -67,10 +69,10 @@ class MainActivity : ComponentActivity() {
     )
 
     Row(
-        Modifier.fillMaxSize().background(Color(0xFF0E1116)).padding(56.dp),
-        horizontalArrangement = Arrangement.spacedBy(48.dp)
+        Modifier.fillMaxSize().background(Color(0xFF0E1116)).padding(48.dp),
+        horizontalArrangement = Arrangement.spacedBy(42.dp)
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(0.9f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("M3U", style = MaterialTheme.typography.headlineMedium, color = Color.White)
             androidx.compose.material3.OutlinedTextField(
                 value = m3u,
@@ -82,8 +84,26 @@ class MainActivity : ComponentActivity() {
             )
             Button(onClick = { vm.loadM3u(m3u) }) { Text("Listeyi Aç") }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+        Column(Modifier.weight(1.1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Xtream Codes", style = MaterialTheme.typography.headlineMedium, color = Color.White)
+
+            if (savedAccounts.isNotEmpty()) {
+                Text("Kayıtlı Hesaplar", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                savedAccounts.forEach { account ->
+                    SavedAccountRow(
+                        account = account,
+                        onLogin = { vm.loadSavedAccount(account) },
+                        onForget = {
+                            vm.forgetAccount(account)
+                            savedAccounts = vm.savedAccounts
+                        }
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text("Yeni hesap ekle", style = MaterialTheme.typography.titleMedium, color = Color(0xFFD7DCE3))
+            }
+
             androidx.compose.material3.OutlinedTextField(
                 value = server,
                 onValueChange = { server = it },
@@ -109,17 +129,29 @@ class MainActivity : ComponentActivity() {
                 colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = { vm.loadXtream(server, user, pass) }) { Text("Giriş") }
-                if (saved.server.isNotBlank() || saved.user.isNotBlank() || saved.pass.isNotBlank()) {
-                    Button(onClick = {
-                        vm.forgetLogin()
-                        server = ""; user = ""; pass = ""; m3u = ""
-                    }) { Text("Hesabı Unut") }
-                }
+            Button(onClick = { vm.loadXtream(server, user, pass) }) { Text("Giriş") }
+        }
+    }
+}
+
+@Composable private fun SavedAccountRow(
+    account: SavedLogin,
+    onLogin: () -> Unit,
+    onForget: () -> Unit,
+) {
+    Card(onClick = onLogin, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(account.user, style = MaterialTheme.typography.titleMedium)
+                Text(account.server, style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
             }
-            if (saved.server.isNotBlank()) {
-                Text("Kayıtlı hesap otomatik dolduruldu", color = Color(0xFFB9C2CF))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onLogin) { Text("Giriş Yap") }
+                Button(onClick = onForget) { Text("Unut") }
             }
         }
     }
@@ -243,10 +275,46 @@ class MainActivity : ComponentActivity() {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
     val controller = remember { PlayerController(context) }
-    DisposableEffect(item.url) { controller.play(item.url); onDispose { controller.release() } }
+    var overlayVisible by remember(item.url) { mutableStateOf(true) }
+
+    DisposableEffect(item.url) {
+        controller.play(item.url)
+        onDispose { controller.release() }
+    }
+
+    LaunchedEffect(item.url, overlayVisible) {
+        if (overlayVisible) {
+            delay(3000)
+            overlayVisible = false
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
-        AndroidView(factory = { ctx -> PlayerView(ctx).apply { player = controller.player; useController = true; layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT) } }, modifier = Modifier.fillMaxSize())
-        Button(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(24.dp)) { Text("← Liste") }
-        Text(item.name, modifier = Modifier.align(Alignment.TopCenter).padding(28.dp))
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = controller.player
+                    useController = true
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        if (overlayVisible) {
+            Button(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.TopStart).padding(24.dp)
+            ) { Text("← Liste") }
+            Text(
+                item.name,
+                color = Color.White,
+                modifier = Modifier.align(Alignment.TopCenter).padding(28.dp)
+            )
+        }
     }
 }
+

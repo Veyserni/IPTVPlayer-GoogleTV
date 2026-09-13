@@ -12,11 +12,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 
 enum class CatalogFilter { ALL, LIVE, SPORT, MOVIE, SERIES }
 
 data class SavedLogin(
-    val m3u: String = "",
     val server: String = "",
     val user: String = "",
     val pass: String = "",
@@ -39,13 +40,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _state = MutableStateFlow<UiState>(UiState.Login)
     val state: StateFlow<UiState> = _state
 
-    val savedLogin: SavedLogin
-        get() = SavedLogin(
-            m3u = prefs.getString("m3u", "").orEmpty(),
-            server = prefs.getString("server", "").orEmpty(),
-            user = prefs.getString("user", "").orEmpty(),
-            pass = prefs.getString("pass", "").orEmpty(),
-        )
+    val savedM3u: String
+        get() = prefs.getString("m3u", "").orEmpty()
+
+    val savedAccounts: List<SavedLogin>
+        get() {
+            val stored = prefs.getString("accounts", null)
+            if (!stored.isNullOrBlank()) {
+                return runCatching {
+                    val array = JSONArray(stored)
+                    buildList {
+                        for (i in 0 until array.length()) {
+                            val obj = array.optJSONObject(i) ?: continue
+                            val server = obj.optString("server")
+                            val user = obj.optString("user")
+                            val pass = obj.optString("pass")
+                            if (server.isNotBlank() && user.isNotBlank()) {
+                                add(SavedLogin(server, user, pass))
+                            }
+                        }
+                    }
+                }.getOrDefault(emptyList())
+            }
+
+            // v0.4.0'daki tek hesap kaydını v0.5.0 listesine otomatik taşı.
+            val legacy = SavedLogin(
+                server = prefs.getString("server", "").orEmpty(),
+                user = prefs.getString("user", "").orEmpty(),
+                pass = prefs.getString("pass", "").orEmpty(),
+            )
+            return if (legacy.server.isNotBlank() && legacy.user.isNotBlank()) listOf(legacy) else emptyList()
+        }
 
     fun loadM3u(url: String) {
         if (url.isNotBlank()) prefs.edit().putString("m3u", url.trim()).apply()
@@ -55,17 +80,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun loadXtream(server: String, user: String, pass: String) {
         val cleanServer = server.trim()
         val cleanUser = user.trim()
-        prefs.edit()
-            .putString("server", cleanServer)
-            .putString("user", cleanUser)
-            .putString("pass", pass)
-            .apply()
+        saveAccount(SavedLogin(cleanServer, cleanUser, pass))
         load(Xtream.playlist(XtreamCredentials(cleanServer, cleanUser, pass)))
     }
 
-    fun forgetLogin() {
-        prefs.edit().clear().apply()
-        _state.value = UiState.Login
+    fun loadSavedAccount(account: SavedLogin) {
+        load(Xtream.playlist(XtreamCredentials(account.server, account.user, account.pass)))
+    }
+
+    fun forgetAccount(account: SavedLogin) {
+        val remaining = savedAccounts.filterNot { it.server == account.server && it.user == account.user }
+        storeAccounts(remaining)
+        clearLegacyIfMatching(account)
+    }
+
+    private fun saveAccount(account: SavedLogin) {
+        if (account.server.isBlank() || account.user.isBlank()) return
+        val updated = buildList {
+            add(account)
+            addAll(savedAccounts.filterNot { it.server == account.server && it.user == account.user })
+        }.take(8)
+        storeAccounts(updated)
+        // Eski sürümle uyumluluk için son hesabı ayrıca tutuyoruz.
+        prefs.edit()
+            .putString("server", account.server)
+            .putString("user", account.user)
+            .putString("pass", account.pass)
+            .apply()
+    }
+
+    private fun storeAccounts(accounts: List<SavedLogin>) {
+        val array = JSONArray()
+        accounts.forEach { account ->
+            array.put(JSONObject().apply {
+                put("server", account.server)
+                put("user", account.user)
+                put("pass", account.pass)
+            })
+        }
+        prefs.edit().putString("accounts", array.toString()).apply()
+    }
+
+    private fun clearLegacyIfMatching(account: SavedLogin) {
+        val sameLegacy = prefs.getString("server", "").orEmpty() == account.server &&
+            prefs.getString("user", "").orEmpty() == account.user
+        if (sameLegacy) {
+            prefs.edit().remove("server").remove("user").remove("pass").apply()
+        }
     }
 
     private fun load(url: String) {
