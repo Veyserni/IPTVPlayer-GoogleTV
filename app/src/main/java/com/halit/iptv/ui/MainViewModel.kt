@@ -25,11 +25,12 @@ data class SavedLogin(
 
 sealed interface UiState {
     data object Login : UiState
-    data object Loading : UiState
+    data class Loading(val message: String = "Liste yükleniyor…") : UiState
     data class Ready(
         val items: List<IptvItem>,
         val filter: CatalogFilter = CatalogFilter.ALL,
         val sportGroup: SportGroup? = null,
+        val isLoading: Boolean = false,
     ) : UiState
     data class Error(val message: String) : UiState
 }
@@ -81,13 +82,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val cleanServer = server.trim()
         val cleanUser = user.trim()
         val account = SavedLogin(cleanServer, cleanUser, pass)
-        load(Xtream.playlist(XtreamCredentials(cleanServer, cleanUser, pass))) {
-            saveAccount(account)
+        if (cleanServer.isBlank() || cleanUser.isBlank() || pass.isBlank()) {
+            _state.value = UiState.Error("Sunucu, kullanıcı adı ve şifre boş bırakılamaz")
+            return
         }
+        val credentials = XtreamCredentials(cleanServer, cleanUser, pass)
+
+        // Windows sürümündeki gibi player_api kontrolünü girişin önüne koymuyoruz.
+        // Önce gerçek playlist'i akış halinde açıyoruz; sağlayıcının API endpoint'i sorunlu olsa bile
+        // canlı liste çalışabiliyorsa kullanıcı bekletilmiyor.
+        loadStreaming(Xtream.playlist(credentials), afterFirstBatch = { saveAccount(account) })
     }
 
     fun loadSavedAccount(account: SavedLogin) {
-        load(Xtream.playlist(XtreamCredentials(account.server, account.user, account.pass)))
+        loadXtream(account.server, account.user, account.pass)
     }
 
     fun forgetAccount(account: SavedLogin) {
@@ -132,19 +140,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun load(url: String, afterSuccess: (() -> Unit)? = null) {
+        loadStreaming(url, afterFirstBatch = afterSuccess)
+    }
+
+    private fun loadStreaming(url: String, afterFirstBatch: (() -> Unit)? = null) {
         if (url.isBlank()) return
         if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
             _state.value = UiState.Error("Adres http:// veya https:// ile başlamalı")
             return
         }
-        _state.value = UiState.Loading
+        _state.value = UiState.Loading("Liste bağlanıyor…")
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { repo.loadM3u(url) }
-                .onSuccess {
-                    afterSuccess?.invoke()
-                    _state.value = UiState.Ready(it)
+            val accumulated = ArrayList<IptvItem>(4096)
+            var firstBatch = true
+            runCatching {
+                repo.loadM3uStreaming(url) { batch ->
+                    accumulated.addAll(batch)
+                    if (firstBatch) {
+                        firstBatch = false
+                        afterFirstBatch?.invoke()
+                    }
+                    // Liste bitmeden katalog görünür olur; yeni batch'ler geldikçe büyür.
+                    _state.value = UiState.Ready(accumulated.toList(), isLoading = true)
                 }
-                .onFailure { _state.value = UiState.Error(it.message ?: "Liste yüklenemedi") }
+            }.onSuccess { finalItems ->
+                if (firstBatch && finalItems.isNotEmpty()) afterFirstBatch?.invoke()
+                _state.value = UiState.Ready(finalItems, isLoading = false)
+            }.onFailure { e ->
+                if (accumulated.isNotEmpty()) {
+                    // Kısmi liste varsa onu kullanılabilir bırak; ağın sonradan kesilmesi tüm kataloğu çöpe atmasın.
+                    _state.value = UiState.Ready(accumulated.toList(), isLoading = false)
+                } else {
+                    _state.value = UiState.Error(e.message ?: "Liste yüklenemedi")
+                }
+            }
         }
     }
 

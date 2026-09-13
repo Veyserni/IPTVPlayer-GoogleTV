@@ -16,7 +16,6 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -43,11 +42,11 @@ class MainActivity : ComponentActivity() {
 @Composable private fun App(vm: MainViewModel) {
     when (val state = vm.state.collectAsStateWithLifecycle().value) {
         UiState.Login -> LoginScreen(vm)
-        UiState.Loading -> Box(
+        is UiState.Loading -> Box(
             Modifier.fillMaxSize().background(Color(0xFF0E1116)),
             contentAlignment = Alignment.Center
         ) {
-            Text("Liste yükleniyor…", color = Color.White, style = MaterialTheme.typography.titleLarge)
+            Text(state.message, color = Color.White, style = MaterialTheme.typography.titleLarge)
         }
         is UiState.Error -> Column(
             Modifier.fillMaxSize().background(Color(0xFF0E1116)).padding(48.dp),
@@ -137,7 +136,6 @@ class MainActivity : ComponentActivity() {
                 onValueChange = { pass = it },
                 label = { androidx.compose.material3.Text("Şifre") },
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
                 colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -251,7 +249,7 @@ class MainActivity : ComponentActivity() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(title, style = MaterialTheme.typography.headlineSmall)
-                Text("${shown.size} öğe")
+                Text(if (state.isLoading) "${shown.size} öğe • yükleniyor…" else "${shown.size} öğe")
             }
 
             LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {

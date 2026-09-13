@@ -15,7 +15,7 @@ object M3uParser {
             when {
                 line.startsWith("#EXTINF", ignoreCase = true) -> info = line
                 line.isNotEmpty() && !line.startsWith("#") && info != null -> {
-                    out += fromPair(info, line)
+                    out += parseEntry(info, line)
                     info = null
                 }
             }
@@ -23,7 +23,11 @@ object M3uParser {
         return out
     }
 
-    private fun fromPair(extinf: String, url: String): IptvItem {
+    /**
+     * Akış halinde M3U okuyan kodun tüm dosyayı belleğe almadan tek bir
+     * #EXTINF + URL çiftini dönüştürebilmesi için açık giriş noktası.
+     */
+    fun parseEntry(extinf: String, url: String): IptvItem {
         val attrs = attr.findAll(extinf).associate { it.groupValues[1].lowercase() to it.groupValues[2] }
         val title = extinf.substringAfterLast(',', "Kanal").trim().ifBlank { "Kanal" }
         val group = attrs["group-title"].orEmpty().ifBlank { inferGroup(title) }
