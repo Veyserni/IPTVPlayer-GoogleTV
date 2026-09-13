@@ -80,8 +80,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun loadXtream(server: String, user: String, pass: String) {
         val cleanServer = server.trim()
         val cleanUser = user.trim()
-        saveAccount(SavedLogin(cleanServer, cleanUser, pass))
-        load(Xtream.playlist(XtreamCredentials(cleanServer, cleanUser, pass)))
+        val account = SavedLogin(cleanServer, cleanUser, pass)
+        load(Xtream.playlist(XtreamCredentials(cleanServer, cleanUser, pass))) {
+            saveAccount(account)
+        }
     }
 
     fun loadSavedAccount(account: SavedLogin) {
@@ -129,7 +131,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun load(url: String) {
+    private fun load(url: String, afterSuccess: (() -> Unit)? = null) {
         if (url.isBlank()) return
         if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
             _state.value = UiState.Error("Adres http:// veya https:// ile başlamalı")
@@ -138,7 +140,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _state.value = UiState.Loading
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { repo.loadM3u(url) }
-                .onSuccess { _state.value = UiState.Ready(it) }
+                .onSuccess {
+                    afterSuccess?.invoke()
+                    _state.value = UiState.Ready(it)
+                }
                 .onFailure { _state.value = UiState.Error(it.message ?: "Liste yüklenemedi") }
         }
     }

@@ -43,8 +43,20 @@ class MainActivity : ComponentActivity() {
 @Composable private fun App(vm: MainViewModel) {
     when (val state = vm.state.collectAsStateWithLifecycle().value) {
         UiState.Login -> LoginScreen(vm)
-        UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Liste yükleniyor…") }
-        is UiState.Error -> Column(Modifier.padding(48.dp)) { Text(state.message); Button(onClick = vm::backToLogin) { Text("Geri") } }
+        UiState.Loading -> Box(
+            Modifier.fillMaxSize().background(Color(0xFF0E1116)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Liste yükleniyor…", color = Color.White, style = MaterialTheme.typography.titleLarge)
+        }
+        is UiState.Error -> Column(
+            Modifier.fillMaxSize().background(Color(0xFF0E1116)).padding(48.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            Text("Liste açılamadı", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+            Text(state.message, color = Color.White)
+            Button(onClick = vm::backToLogin) { Text("Geri") }
+        }
         is UiState.Ready -> CatalogScreen(state, vm)
     }
 }
