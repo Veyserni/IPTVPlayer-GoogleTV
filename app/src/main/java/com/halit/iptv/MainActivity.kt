@@ -1,263 +1,292 @@
 package com.halit.iptv
 
 import android.os.Bundle
+import android.view.KeyEvent as AndroidKeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.*
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.nativeKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
-import androidx.tv.material3.*
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
 import com.halit.iptv.model.IptvItem
 import com.halit.iptv.model.MediaKind
 import com.halit.iptv.model.SportGroup
 import com.halit.iptv.player.PlayerController
-import com.halit.iptv.ui.MainViewModel
-import com.halit.iptv.ui.UiState
 import com.halit.iptv.ui.CatalogFilter
+import com.halit.iptv.ui.MainViewModel
 import com.halit.iptv.ui.SavedLogin
+import com.halit.iptv.ui.UiState
+import kotlinx.coroutines.delay
+import kotlin.math.max
+
+private val Purple = Color(0xFF7C3CFF)
+private val PurpleLight = Color(0xFFA56BFF)
+private val Blue = Color(0xFF5267FF)
+private val Panel = Color(0xD9141C3A)
+private val PanelSoft = Color(0xB30F1730)
+private val TextSoft = Color(0xFFB8C2E3)
+private val Line = Color(0xFF33447A)
+private val BgTop = Color(0xFF070B1D)
+private val BgBottom = Color(0xFF11103A)
 
 class MainActivity : ComponentActivity() {
     private val vm by viewModels<MainViewModel>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { MaterialTheme { App(vm) } }
     }
 }
 
-@Composable private fun App(vm: MainViewModel) {
+@Composable
+private fun App(vm: MainViewModel) {
     when (val state = vm.state.collectAsStateWithLifecycle().value) {
         UiState.Login -> LoginScreen(vm)
-        is UiState.Loading -> Box(
-            Modifier.fillMaxSize().background(Color(0xFF0E1116)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(state.message, color = Color.White, style = MaterialTheme.typography.titleLarge)
+        is UiState.Loading -> NeonBackground {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                NeonPanel(Modifier.width(560.dp)) {
+                    Column(
+                        Modifier.padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        BrandTitle()
+                        Text(state.message, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = PurpleLight,
+                            trackColor = Color(0xFF202A53)
+                        )
+                    }
+                }
+            }
         }
-        is UiState.Error -> Column(
-            Modifier.fillMaxSize().background(Color(0xFF0E1116)).padding(48.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            Text("Liste açılamadı", color = Color.White, style = MaterialTheme.typography.headlineSmall)
-            Text(state.message, color = Color.White)
-            Button(onClick = vm::backToLogin) { Text("Geri") }
+        is UiState.Error -> NeonBackground {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                NeonPanel(Modifier.width(680.dp)) {
+                    Column(Modifier.padding(32.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                        Text("Liste açılamadı", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                        Text(state.message, color = TextSoft, fontSize = 18.sp)
+                        NeonButton("Geri", selected = true, onClick = vm::backToLogin)
+                    }
+                }
+            }
         }
         is UiState.Ready -> CatalogScreen(state, vm)
     }
 }
 
-@Composable private fun LoginScreen(vm: MainViewModel) {
+@Composable
+private fun NeonBackground(content: @Composable BoxScope.() -> Unit) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(BgTop, Color(0xFF0B1230), BgBottom)
+                )
+            ),
+        content = content
+    )
+}
+
+@Composable
+private fun BrandTitle() {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(
+            Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Brush.linearGradient(listOf(Blue, PurpleLight))),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("▶", color = Color.White, fontSize = 18.sp)
+        }
+        Row {
+            Text("IPTV ", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("Player", color = PurpleLight, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun NeonPanel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Box(
+        modifier
+            .clip(RoundedCornerShape(22.dp))
+            .background(Panel)
+            .border(1.dp, Line, RoundedCornerShape(22.dp))
+    ) { content() }
+}
+
+@Composable
+private fun LoginScreen(vm: MainViewModel) {
     var m3u by remember { mutableStateOf(vm.savedM3u) }
     var server by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var savedAccounts by remember { mutableStateOf(vm.savedAccounts) }
 
-    val fieldColors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
         unfocusedTextColor = Color.White,
-        focusedContainerColor = Color(0xFF1C222B),
-        unfocusedContainerColor = Color(0xFF171C23),
-        focusedBorderColor = Color(0xFF9E8CFF),
-        unfocusedBorderColor = Color(0xFF7A8594),
-        focusedLabelColor = Color(0xFFC8BEFF),
-        unfocusedLabelColor = Color(0xFFD7DCE3),
-        cursorColor = Color.White,
+        focusedContainerColor = Color(0xFF121B3D),
+        unfocusedContainerColor = Color(0xFF101731),
+        focusedBorderColor = PurpleLight,
+        unfocusedBorderColor = Line,
+        focusedLabelColor = PurpleLight,
+        unfocusedLabelColor = TextSoft,
+        cursorColor = PurpleLight,
     )
 
-    Row(
-        Modifier.fillMaxSize().background(Color(0xFF0E1116)).padding(48.dp),
-        horizontalArrangement = Arrangement.spacedBy(42.dp)
-    ) {
-        Column(Modifier.weight(0.9f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("M3U", style = MaterialTheme.typography.headlineMedium, color = Color.White)
-            androidx.compose.material3.OutlinedTextField(
-                value = m3u,
-                onValueChange = { m3u = it },
-                label = { androidx.compose.material3.Text("M3U URL") },
-                singleLine = true,
-                colors = fieldColors,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Button(onClick = { vm.loadM3u(m3u) }) { Text("Listeyi Aç") }
-        }
-
-        Column(Modifier.weight(1.1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Xtream Codes", style = MaterialTheme.typography.headlineMedium, color = Color.White)
-
-            if (savedAccounts.isNotEmpty()) {
-                Text("Kayıtlı Hesaplar", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                savedAccounts.forEach { account ->
-                    SavedAccountRow(
-                        account = account,
-                        onLogin = { vm.loadSavedAccount(account) },
-                        onForget = {
-                            vm.forgetAccount(account)
-                            savedAccounts = vm.savedAccounts
-                        }
-                    )
-                }
-                Spacer(Modifier.height(4.dp))
-                Text("Yeni hesap ekle", style = MaterialTheme.typography.titleMedium, color = Color(0xFFD7DCE3))
-            }
-
-            androidx.compose.material3.OutlinedTextField(
-                value = server,
-                onValueChange = { server = it },
-                label = { androidx.compose.material3.Text("Sunucu") },
-                singleLine = true,
-                colors = fieldColors,
-                modifier = Modifier.fillMaxWidth()
-            )
-            androidx.compose.material3.OutlinedTextField(
-                value = user,
-                onValueChange = { user = it },
-                label = { androidx.compose.material3.Text("Kullanıcı") },
-                singleLine = true,
-                colors = fieldColors,
-                modifier = Modifier.fillMaxWidth()
-            )
-            androidx.compose.material3.OutlinedTextField(
-                value = pass,
-                onValueChange = { pass = it },
-                label = { androidx.compose.material3.Text("Şifre") },
-                singleLine = true,
-                colors = fieldColors,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Button(onClick = { vm.loadXtream(server, user, pass) }) { Text("Giriş") }
-        }
-    }
-}
-
-@Composable private fun SavedAccountRow(
-    account: SavedLogin,
-    onLogin: () -> Unit,
-    onForget: () -> Unit,
-) {
-    Card(onClick = onLogin, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(account.user, style = MaterialTheme.typography.titleMedium)
-                Text(account.server, style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onLogin) { Text("Giriş Yap") }
-                Button(onClick = onForget) { Text("Unut") }
-            }
-        }
-    }
-}
-
-@Composable private fun CatalogScreen(state: UiState.Ready, vm: MainViewModel) {
-    var playing by remember { mutableStateOf<IptvItem?>(null) }
-    playing?.let { PlayerScreen(it) { playing = null }; return }
-
-    val availableSportGroups = remember(state.items) {
-        SportGroup.entries.filter { group -> state.items.any { it.sportGroup == group } }
-    }
-
-    val sportCounts = remember(state.items) {
-        state.items.filter { it.sportGroup != null }
-            .groupingBy { it.sportGroup!! }
-            .eachCount()
-    }
-
-    val shown = remember(state.items, state.filter, state.sportGroup) {
-        state.items.asSequence().filter { item ->
-            when (state.filter) {
-                CatalogFilter.ALL -> true
-                CatalogFilter.LIVE -> item.kind == MediaKind.LIVE
-                CatalogFilter.SPORT -> item.sportGroup != null && (state.sportGroup == null || item.sportGroup == state.sportGroup)
-                CatalogFilter.MOVIE -> item.kind == MediaKind.MOVIE
-                CatalogFilter.SERIES -> item.kind == MediaKind.SERIES
-            }
-        }.take(5000).toList()
-    }
-
-    Row(
-        Modifier.fillMaxSize().padding(24.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        // 1) Ana menü: kullanıcının istediği gibi Spor, Canlı Yayın'ın üstünde.
-        Column(
-            Modifier.width(220.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text("IPTV Player", style = MaterialTheme.typography.headlineSmall)
-            MainMenuButton("Spor", state.filter == CatalogFilter.SPORT) { vm.setFilter(CatalogFilter.SPORT) }
-            MainMenuButton("Canlı Yayın", state.filter == CatalogFilter.LIVE) { vm.setFilter(CatalogFilter.LIVE) }
-            MainMenuButton("Filmler", state.filter == CatalogFilter.MOVIE) { vm.setFilter(CatalogFilter.MOVIE) }
-            MainMenuButton("Diziler", state.filter == CatalogFilter.SERIES) { vm.setFilter(CatalogFilter.SERIES) }
-            MainMenuButton("Tümü", state.filter == CatalogFilter.ALL) { vm.setFilter(CatalogFilter.ALL) }
-        }
-
-        // 2) Spor seçiliyken ekran görüntüsündeki gibi ayrı bir yan kategori sütunu.
-        if (state.filter == CatalogFilter.SPORT) {
-            Column(
-                Modifier.width(250.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text("Spor", style = MaterialTheme.typography.titleLarge)
-                SportCategoryButton(
-                    label = "Tümü",
-                    count = state.items.count { it.sportGroup != null },
-                    selected = state.sportGroup == null
-                ) { vm.setSportGroup(null) }
-
-                availableSportGroups.forEach { group ->
-                    SportCategoryButton(
-                        label = group.label,
-                        count = sportCounts[group] ?: 0,
-                        selected = state.sportGroup == group
-                    ) { vm.setSportGroup(group) }
-                }
-            }
-        }
-
-        // 3) Sağ panel: seçilen ana/alt sekmenin kanalları.
-        Column(Modifier.weight(1f)) {
-            val title = when {
-                state.filter == CatalogFilter.SPORT && state.sportGroup != null -> state.sportGroup.label
-                state.filter == CatalogFilter.SPORT -> "Spor"
-                state.filter == CatalogFilter.LIVE -> "Canlı Yayın"
-                state.filter == CatalogFilter.MOVIE -> "Filmler"
-                state.filter == CatalogFilter.SERIES -> "Diziler"
-                else -> "Tümü"
-            }
+    NeonBackground {
+        Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 30.dp)) {
             Row(
-                Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(title, style = MaterialTheme.typography.headlineSmall)
-                Text(if (state.isLoading) "${shown.size} öğe • yükleniyor…" else "${shown.size} öğe")
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    BrandTitle()
+                    Text("Hoş geldin", color = TextSoft, fontSize = 19.sp)
+                }
+                Text("DAHA FAZLA EĞLENCE  •  HER ZAMAN SENİNLE", color = Color(0xFF8390D7), fontSize = 14.sp)
             }
 
-            LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(shown, key = { it.url }) { item ->
-                    Card(onClick = { playing = item }, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-                            Text(item.name, style = MaterialTheme.typography.titleMedium)
-                            Text(item.group, color = Color.LightGray)
+            Spacer(Modifier.height(24.dp))
+
+            Row(
+                Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(22.dp)
+            ) {
+                NeonPanel(Modifier.weight(0.9f).fillMaxHeight()) {
+                    Column(
+                        Modifier.fillMaxSize().padding(28.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        Text("M3U", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                        Text("M3U bağlantı linki ile kanal listenizi yükleyin.", color = TextSoft, fontSize = 16.sp)
+                        OutlinedTextField(
+                            value = m3u,
+                            onValueChange = { m3u = it },
+                            label = { androidx.compose.material3.Text("M3U URL") },
+                            placeholder = { androidx.compose.material3.Text("http://…") },
+                            singleLine = true,
+                            colors = fieldColors,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        NeonButton("Listeyi Aç", selected = true, onClick = { vm.loadM3u(m3u) })
+                        Spacer(Modifier.weight(1f))
+                        Box(
+                            Modifier.fillMaxWidth().height(120.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0x332C1BFF), Color(0x553D26CC), Color.Transparent)
+                                    )
+                                )
+                        ) {
+                            Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
+                                Text("TV için optimize edildi", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Kumanda ile kolay gezinme • okunaklı kartlar", color = TextSoft, fontSize = 14.sp)
+                            }
+                        }
+                    }
+                }
+
+                NeonPanel(Modifier.weight(1.25f).fillMaxHeight()) {
+                    Column(
+                        Modifier.fillMaxSize().padding(28.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("Xtream Codes", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                        Text("Sunucu bilgileri ile giriş yapın.", color = TextSoft, fontSize = 16.sp)
+
+                        OutlinedTextField(
+                            value = server,
+                            onValueChange = { server = it },
+                            label = { androidx.compose.material3.Text("Sunucu") },
+                            singleLine = true,
+                            colors = fieldColors,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = user,
+                            onValueChange = { user = it },
+                            label = { androidx.compose.material3.Text("Kullanıcı adı") },
+                            singleLine = true,
+                            colors = fieldColors,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = pass,
+                            onValueChange = { pass = it },
+                            label = { androidx.compose.material3.Text("Şifre") },
+                            singleLine = true,
+                            colors = fieldColors,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Box(Modifier.weight(1f)) {
+                                NeonButton("Giriş Yap", selected = true, onClick = { vm.loadXtream(server, user, pass) })
+                            }
+                            Box(Modifier.weight(0.9f)) {
+                                NeonButton("Hesap Ekle", selected = false, onClick = { vm.loadXtream(server, user, pass) })
+                            }
+                        }
+
+                        if (savedAccounts.isNotEmpty()) {
+                            Text("Kayıtlı Hesaplar", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                            savedAccounts.take(2).forEach { account ->
+                                SavedAccountRow(
+                                    account = account,
+                                    onLogin = { vm.loadSavedAccount(account) },
+                                    onForget = {
+                                        vm.forgetAccount(account)
+                                        savedAccounts = vm.savedAccounts
+                                    }
+                                )
+                            }
+                        } else {
+                            Text("İlk başarılı girişten sonra hesabın burada görünür.", color = TextSoft, fontSize = 14.sp)
                         }
                     }
                 }
@@ -266,45 +295,391 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable private fun MainMenuButton(label: String, selected: Boolean, click: () -> Unit) {
-    Button(onClick = click, modifier = Modifier.fillMaxWidth()) {
-        Text(if (selected) "● $label" else label)
+@Composable
+private fun NeonButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(16.dp)
+    val borderColor = if (focused || selected) PurpleLight else Line
+    val background = if (selected || focused) {
+        Brush.linearGradient(listOf(Color(0xFF4A2DFF), Purple))
+    } else {
+        Brush.linearGradient(listOf(Color(0xFF141D3C), Color(0xFF101731)))
     }
-}
 
-@Composable private fun SportCategoryButton(label: String, count: Int, selected: Boolean, click: () -> Unit) {
-    Button(onClick = click, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(if (selected) "● $label" else label)
-            Text(count.toString())
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .clip(shape)
+            .background(background)
+            .border(if (focused) 2.dp else 1.dp, borderColor, shape)
+            .padding(horizontal = 20.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(label, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text("›", color = Color.White, fontSize = 30.sp)
         }
     }
 }
 
-@Composable private fun PlayerScreen(item: IptvItem, onBack: () -> Unit) {
+@Composable
+private fun SavedAccountRow(account: SavedLogin, onLogin: () -> Unit, onForget: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onLogin)
+            .clip(shape)
+            .background(if (focused) Color(0xFF25205A) else Color(0xFF111A38))
+            .border(if (focused) 2.dp else 1.dp, if (focused) PurpleLight else Line, shape)
+            .padding(horizontal = 16.dp, vertical = 11.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(account.user, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(account.server, color = TextSoft, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SmallAction("Hızlı Giriş", onLogin)
+            SmallAction("Unut", onForget)
+        }
+    }
+}
+
+@Composable
+private fun SmallAction(label: String, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (focused) Purple else Color(0xFF202A55))
+            .border(1.dp, if (focused) PurpleLight else Line, RoundedCornerShape(12.dp))
+            .padding(horizontal = 13.dp, vertical = 9.dp)
+    ) {
+        Text(label, color = Color.White, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun CatalogScreen(state: UiState.Ready, vm: MainViewModel) {
+    var playing by remember { mutableStateOf<IptvItem?>(null) }
+    var search by remember { mutableStateOf("") }
+    playing?.let { PlayerScreen(it) { playing = null }; return }
+
+    val availableSportGroups = remember(state.items) {
+        SportGroup.entries.filter { group -> state.items.any { it.sportGroup == group } }
+    }
+    val sportCounts = remember(state.items) {
+        state.items.filter { it.sportGroup != null }.groupingBy { it.sportGroup!! }.eachCount()
+    }
+
+    val shown = remember(state.items, state.filter, state.sportGroup, search) {
+        val q = search.trim()
+        state.items.asSequence().filter { item ->
+            val categoryMatch = when (state.filter) {
+                CatalogFilter.ALL -> true
+                CatalogFilter.LIVE -> item.kind == MediaKind.LIVE
+                CatalogFilter.SPORT -> item.sportGroup != null && (state.sportGroup == null || item.sportGroup == state.sportGroup)
+                CatalogFilter.MOVIE -> item.kind == MediaKind.MOVIE
+                CatalogFilter.SERIES -> item.kind == MediaKind.SERIES
+            }
+            categoryMatch && (q.isBlank() || item.name.contains(q, ignoreCase = true) || item.group.contains(q, ignoreCase = true))
+        }.take(5000).toList()
+    }
+
+    NeonBackground {
+        Row(Modifier.fillMaxSize()) {
+            Sidebar(state.filter, vm)
+
+            Column(Modifier.weight(1f).fillMaxHeight().padding(start = 20.dp, top = 20.dp, end = 24.dp, bottom = 20.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("⌂", color = TextSoft, fontSize = 24.sp)
+                        Text("›", color = TextSoft, fontSize = 26.sp)
+                        Text(
+                            when (state.filter) {
+                                CatalogFilter.SPORT -> "Spor"
+                                CatalogFilter.LIVE -> "Canlı Yayın"
+                                CatalogFilter.MOVIE -> "Filmler"
+                                CatalogFilter.SERIES -> "Diziler"
+                                CatalogFilter.ALL -> "Tümü"
+                            },
+                            color = Color.White,
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OutlinedTextField(
+                            value = search,
+                            onValueChange = { search = it },
+                            placeholder = { androidx.compose.material3.Text("Kanal ara…") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedContainerColor = Color(0xFF111A38),
+                                unfocusedContainerColor = Color(0xFF101731),
+                                focusedBorderColor = PurpleLight,
+                                unfocusedBorderColor = Line,
+                                cursorColor = PurpleLight,
+                            ),
+                            modifier = Modifier.width(300.dp)
+                        )
+                        Text(
+                            if (state.isLoading) "${shown.size} kanal • yükleniyor…" else "${shown.size} kanal",
+                            color = Color.White,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                if (state.filter == CatalogFilter.SPORT) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        item {
+                            SportChip("Tümü", state.sportGroup == null) { vm.setSportGroup(null) }
+                        }
+                        items(availableSportGroups) { group ->
+                            SportChip(group.label, state.sportGroup == group) { vm.setSportGroup(group) }
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                if (shown.isEmpty()) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Bu bölümde kanal bulunamadı", color = TextSoft, fontSize = 20.sp)
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        itemsIndexed(shown, key = { index, item -> "${item.url}#$index" }) { index, item ->
+                            ChannelCard(index + 1, item) { playing = item }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Sidebar(filter: CatalogFilter, vm: MainViewModel) {
+    Column(
+        Modifier.width(250.dp).fillMaxHeight().background(Color(0xAA080E22)).padding(horizontal = 18.dp, vertical = 22.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        BrandTitle()
+        Spacer(Modifier.height(8.dp))
+        NavTile("Spor", filter == CatalogFilter.SPORT) { vm.setFilter(CatalogFilter.SPORT) }
+        NavTile("Canlı Yayın", filter == CatalogFilter.LIVE) { vm.setFilter(CatalogFilter.LIVE) }
+        NavTile("Filmler", filter == CatalogFilter.MOVIE) { vm.setFilter(CatalogFilter.MOVIE) }
+        NavTile("Diziler", filter == CatalogFilter.SERIES) { vm.setFilter(CatalogFilter.SERIES) }
+        NavTile("Tümü", filter == CatalogFilter.ALL) { vm.setFilter(CatalogFilter.ALL) }
+        Spacer(Modifier.weight(1f))
+        Text("DAHA FAZLA EĞLENCE", color = Color(0xFF7D8BD3), fontSize = 12.sp)
+        Text("HER ZAMAN SENİNLE", color = Color(0xFF7D8BD3), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun NavTile(label: String, selected: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(16.dp)
+    val bg = if (selected || focused) Brush.linearGradient(listOf(Color(0xFF552DFF), Purple)) else Brush.linearGradient(listOf(Color(0xFF111A36), Color(0xFF0D142B)))
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .clip(shape)
+            .background(bg)
+            .border(if (focused) 2.dp else 1.dp, if (selected || focused) PurpleLight else Color(0xFF26345F), shape)
+            .padding(horizontal = 18.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(label, color = Color.White, fontSize = 18.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+            Text("›", color = Color.White, fontSize = 28.sp)
+        }
+    }
+}
+
+@Composable
+private fun SportChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(14.dp)
+    Box(
+        Modifier
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .clip(shape)
+            .background(if (selected || focused) Brush.linearGradient(listOf(Color(0xFF5B32FF), PurpleLight)) else Brush.linearGradient(listOf(Color(0xFF111A38), Color(0xFF101731))))
+            .border(if (focused) 2.dp else 1.dp, if (selected || focused) PurpleLight else Line, shape)
+            .padding(horizontal = 18.dp, vertical = 12.dp)
+    ) {
+        Text(label, color = Color.White, fontSize = 15.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun ChannelCard(number: Int, item: IptvItem, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(92.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .clip(shape)
+            .background(if (focused) Color(0xFF23205A) else PanelSoft)
+            .border(if (focused) 2.dp else 1.dp, if (focused) PurpleLight else Color(0xFF26345F), shape)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(number.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Box(
+                Modifier.size(54.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF151B35)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(logoLabel(item), color = PurpleLight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(item.name, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.group, color = TextSoft, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Box(
+                Modifier.clip(RoundedCornerShape(9.dp)).background(Color(0xFF25205A)).border(1.dp, PurpleLight, RoundedCornerShape(9.dp)).padding(horizontal = 8.dp, vertical = 5.dp)
+            ) {
+                Text(qualityLabel(item.name), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Text("›", color = Color.White, fontSize = 28.sp)
+        }
+    }
+}
+
+private fun logoLabel(item: IptvItem): String {
+    val n = item.name.lowercase()
+    return when {
+        "bein" in n -> "beIN"
+        "s sport" in n -> "S"
+        "tivibu" in n -> "tivibu"
+        "tabii" in n -> "tabii"
+        "trt" in n -> "TRT"
+        "exxen" in n -> "EXXEN"
+        else -> item.name.take(4).uppercase()
+    }
+}
+
+private fun qualityLabel(name: String): String {
+    val n = name.lowercase()
+    return when {
+        "4k" in n -> "4K"
+        "1080" in n || "hd" in n -> "HD"
+        "720" in n -> "720p"
+        "576" in n -> "576p"
+        "360" in n -> "360p"
+        else -> "CANLI"
+    }
+}
+
+@Composable
+private fun PlayerScreen(item: IptvItem, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
     val controller = remember { PlayerController(context) }
+    val focusRequester = remember { FocusRequester() }
     var overlayVisible by remember(item.url) { mutableStateOf(true) }
+    var overlayToken by remember { mutableIntStateOf(0) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var position by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
+    var muted by remember { mutableStateOf(false) }
+    var settingsVisible by remember { mutableStateOf(false) }
 
     DisposableEffect(item.url) {
         controller.play(item.url)
         onDispose { controller.release() }
     }
 
-    LaunchedEffect(item.url, overlayVisible) {
-        if (overlayVisible) {
-            delay(3000)
-            overlayVisible = false
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    LaunchedEffect(item.url, overlayToken) {
+        overlayVisible = true
+        delay(2000)
+        if (!settingsVisible) overlayVisible = false
+    }
+
+    LaunchedEffect(item.url) {
+        while (true) {
+            val p = controller.player
+            isPlaying = p.isPlaying
+            position = max(0L, p.currentPosition)
+            duration = if (p.duration == C.TIME_UNSET || p.duration < 0) 0L else p.duration
+            delay(500)
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    fun showOverlay() {
+        overlayVisible = true
+        overlayToken++
+    }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (event.nativeKeyEvent.action != AndroidKeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                showOverlay()
+                when (event.nativeKeyEvent.keyCode) {
+                    AndroidKeyEvent.KEYCODE_DPAD_LEFT -> {
+                        controller.player.seekTo(max(0L, controller.player.currentPosition - 10_000L)); true
+                    }
+                    AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        controller.player.seekTo(controller.player.currentPosition + 10_000L); true
+                    }
+                    AndroidKeyEvent.KEYCODE_DPAD_CENTER,
+                    AndroidKeyEvent.KEYCODE_ENTER -> {
+                        if (controller.player.isPlaying) controller.player.pause() else controller.player.play(); true
+                    }
+                    else -> false
+                }
+            }
+    ) {
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = controller.player
-                    useController = true
+                    useController = false
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -315,16 +690,127 @@ class MainActivity : ComponentActivity() {
         )
 
         if (overlayVisible) {
-            Button(
-                onClick = onBack,
-                modifier = Modifier.align(Alignment.TopStart).padding(24.dp)
-            ) { Text("← Liste") }
-            Text(
-                item.name,
-                color = Color.White,
-                modifier = Modifier.align(Alignment.TopCenter).padding(28.dp)
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        listOf(Color(0x88040A20), Color.Transparent, Color.Transparent, Color(0xDD06091A))
+                    )
+                )
             )
+
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 26.dp, vertical = 22.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SmallPlayerButton("← Liste") { onBack() }
+                Text(item.name, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(if (item.kind == MediaKind.LIVE) "CANLI" else qualityLabel(item.name), color = PurpleLight, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Column(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 34.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(formatTime(position), color = Color.White, fontSize = 14.sp)
+                    LinearProgressIndicator(
+                        progress = { if (duration > 0) (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f },
+                        modifier = Modifier.weight(1f).height(5.dp),
+                        color = PurpleLight,
+                        trackColor = Color(0xFF53608D)
+                    )
+                    Text(if (duration > 0) formatTime(duration) else "CANLI", color = Color.White, fontSize = 14.sp)
+                }
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PlayerControlButton("↶ 10", compact = true) {
+                        controller.player.seekTo(max(0L, controller.player.currentPosition - 10_000L)); showOverlay()
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    PlayerControlButton(if (isPlaying) "Ⅱ" else "▶", compact = false) {
+                        if (controller.player.isPlaying) controller.player.pause() else controller.player.play(); showOverlay()
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    PlayerControlButton("10 ↷", compact = true) {
+                        controller.player.seekTo(controller.player.currentPosition + 10_000L); showOverlay()
+                    }
+                    Spacer(Modifier.width(30.dp))
+                    PlayerControlButton(if (muted) "Ses Aç" else "Sessiz", compact = true) {
+                        muted = !muted
+                        controller.player.volume = if (muted) 0f else 1f
+                        showOverlay()
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    PlayerControlButton("Ayarlar", compact = true) {
+                        settingsVisible = !settingsVisible
+                        overlayVisible = true
+                    }
+                }
+            }
+
+            if (settingsVisible) {
+                NeonPanel(Modifier.align(Alignment.CenterEnd).padding(end = 30.dp).width(300.dp)) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Oynatıcı Ayarları", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text("• Sol / sağ: 10 saniye geri / ileri", color = TextSoft, fontSize = 14.sp)
+                        Text("• OK: oynat / duraklat", color = TextSoft, fontSize = 14.sp)
+                        Text("• Kontroller 3 saniye sonra gizlenir", color = TextSoft, fontSize = 14.sp)
+                        SmallAction("Kapat") {
+                            settingsVisible = false
+                            showOverlay()
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+@Composable
+private fun SmallPlayerButton(label: String, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xAA131C3C))
+            .border(if (focused) 2.dp else 1.dp, if (focused) PurpleLight else Line, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        Text(label, color = Color.White, fontSize = 15.sp)
+    }
+}
+
+@Composable
+private fun PlayerControlButton(label: String, compact: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val size = if (compact) 70.dp else 84.dp
+    Box(
+        Modifier
+            .size(size)
+            .onFocusChanged { focused = it.isFocused }
+            .focusable()
+            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(50))
+            .background(if (focused) Brush.radialGradient(listOf(PurpleLight, Purple)) else Brush.radialGradient(listOf(Color(0xFF1A2550), Color(0xFF11182E))))
+            .border(if (focused) 3.dp else 2.dp, if (focused) Color.White else PurpleLight, RoundedCornerShape(50)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = Color.White, fontSize = if (compact) 13.sp else 30.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun formatTime(ms: Long): String {
+    val total = ms / 1000L
+    val h = total / 3600L
+    val m = (total % 3600L) / 60L
+    val s = total % 60L
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
+}
