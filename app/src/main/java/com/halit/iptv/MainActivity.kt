@@ -38,6 +38,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,7 +83,20 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun App(vm: MainViewModel) {
-    when (val state = vm.state.collectAsStateWithLifecycle().value) {
+    val state = vm.state.collectAsStateWithLifecycle().value
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // Android TV bazen TextField IME'sini ekran değişiminden sonra açık bırakabiliyor.
+    // Login ekranından çıkar çıkmaz focus'u temizleyip klavyeyi zorla kapatıyoruz.
+    LaunchedEffect(state) {
+        if (state !is UiState.Login) {
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
+    }
+
+    when (state) {
         UiState.Login -> LoginScreen(vm)
         is UiState.Loading -> NeonBackground {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -166,7 +181,22 @@ private fun LoginScreen(vm: MainViewModel) {
     var server by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
-    var savedAccounts by remember { mutableStateOf(vm.savedAccounts) }
+    val savedAccounts = vm.savedAccounts
+    var showManualEntry by remember { mutableStateOf(savedAccounts.isEmpty()) }
+    val firstSavedAccountFocus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    fun hideImeAndClearFocus() {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+    }
+
+    LaunchedEffect(savedAccounts.size) {
+        if (savedAccounts.isNotEmpty() && !showManualEntry) {
+            firstSavedAccountFocus.requestFocus()
+        }
+    }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.White,
@@ -216,10 +246,13 @@ private fun LoginScreen(vm: MainViewModel) {
                             colors = fieldColors,
                             modifier = Modifier.fillMaxWidth()
                         )
-                        NeonButton("Listeyi Aç", selected = false, onClick = { vm.loadM3u(m3u) })
+                        NeonButton("Listeyi Aç", selected = false, onClick = {
+                            hideImeAndClearFocus()
+                            vm.loadM3u(m3u)
+                        })
                         Spacer(Modifier.weight(1f))
                         Box(
-                            Modifier.fillMaxWidth().height(104.dp)
+                            Modifier.fillMaxWidth().height(110.dp)
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(
                                     Brush.linearGradient(
@@ -228,7 +261,7 @@ private fun LoginScreen(vm: MainViewModel) {
                                 )
                         ) {
                             Column(
-                                Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 14.dp),
+                                Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 16.dp),
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
@@ -238,13 +271,14 @@ private fun LoginScreen(vm: MainViewModel) {
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1
                                 )
-                                Spacer(Modifier.height(5.dp))
+                                Spacer(Modifier.height(6.dp))
                                 Text(
                                     "Kumanda ile kolay gezinme • okunaklı arayüz",
                                     color = TextSoft,
                                     fontSize = 13.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    lineHeight = 17.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Clip
                                 )
                             }
                         }
@@ -259,55 +293,64 @@ private fun LoginScreen(vm: MainViewModel) {
                         Text("Xtream Codes", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                         Text("Sunucu bilgileri ile giriş yapın.", color = TextSoft, fontSize = 16.sp)
 
-                        OutlinedTextField(
-                            value = server,
-                            onValueChange = { server = it },
-                            label = { androidx.compose.material3.Text("Sunucu") },
-                            singleLine = true,
-                            colors = fieldColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = user,
-                            onValueChange = { user = it },
-                            label = { androidx.compose.material3.Text("Kullanıcı adı") },
-                            singleLine = true,
-                            colors = fieldColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = pass,
-                            onValueChange = { pass = it },
-                            label = { androidx.compose.material3.Text("Şifre") },
-                            singleLine = true,
-                            colors = fieldColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Box(Modifier.weight(1f)) {
-                                NeonButton("Giriş Yap", selected = false, onClick = { vm.loadXtream(server, user, pass) })
-                            }
-                            savedAccounts.firstOrNull()?.let { account ->
-                                Box(Modifier.weight(0.9f)) {
-                                    SavedAccountQuickButton(
-                                        account = account,
-                                        onLogin = { vm.loadSavedAccount(account) }
-                                    )
-                                }
-                            }
-                        }
-
-                        if (savedAccounts.size > 1) {
-                            Text("Diğer kayıtlı hesaplar", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                            savedAccounts.drop(1).take(2).forEach { account ->
+                        if (savedAccounts.isNotEmpty()) {
+                            Text("Kayıtlı Hesaplar", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                            savedAccounts.take(3).forEachIndexed { index, account ->
                                 SavedAccountQuickButton(
                                     account = account,
-                                    onLogin = { vm.loadSavedAccount(account) }
+                                    onLogin = {
+                                        hideImeAndClearFocus()
+                                        vm.loadSavedAccount(account)
+                                    },
+                                    modifier = if (index == 0) Modifier.focusRequester(firstSavedAccountFocus) else Modifier
                                 )
                             }
-                        } else if (savedAccounts.isEmpty()) {
-                            Text("Başarılı giriş yaptığında hesap otomatik kaydedilir.", color = TextSoft, fontSize = 14.sp)
+                            NeonButton(
+                                label = if (showManualEntry) "Yeni hesap girişini kapat" else "Yeni hesapla giriş",
+                                selected = false,
+                                onClick = {
+                                    hideImeAndClearFocus()
+                                    showManualEntry = !showManualEntry
+                                }
+                            )
+                        } else {
+                            Text("Kayıtlı hesap yok. Yeni hesapla giriş yapabilirsin.", color = TextSoft, fontSize = 14.sp)
+                        }
+
+                        if (showManualEntry) {
+                            OutlinedTextField(
+                                value = server,
+                                onValueChange = { server = it },
+                                label = { androidx.compose.material3.Text("Sunucu") },
+                                singleLine = true,
+                                colors = fieldColors,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = user,
+                                onValueChange = { user = it },
+                                label = { androidx.compose.material3.Text("Kullanıcı adı") },
+                                singleLine = true,
+                                colors = fieldColors,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = pass,
+                                onValueChange = { pass = it },
+                                label = { androidx.compose.material3.Text("Şifre") },
+                                singleLine = true,
+                                colors = fieldColors,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            NeonButton("Giriş Yap", selected = false, onClick = {
+                                hideImeAndClearFocus()
+                                vm.loadXtream(server, user, pass)
+                            })
+                            Text(
+                                "Başarılı girişten sonra hesap otomatik kaydedilir.",
+                                color = TextSoft,
+                                fontSize = 13.sp
+                            )
                         }
                     }
                 }
@@ -360,13 +403,13 @@ private fun NeonButton(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SavedAccountQuickButton(account: SavedLogin, onLogin: () -> Unit) {
+private fun SavedAccountQuickButton(account: SavedLogin, onLogin: () -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(16.dp)
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .height(68.dp)
             .onFocusChanged { focused = it.isFocused }
             .tvAction(onLogin)
             .clip(shape)
@@ -384,8 +427,8 @@ private fun SavedAccountQuickButton(account: SavedLogin, onLogin: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(account.user, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text("Kayıtlı hesap", color = TextSoft, fontSize = 12.sp, maxLines = 1)
+                Text(account.user, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("Kayıtlı hesap", color = TextSoft, fontSize = 11.sp, maxLines = 1)
             }
             Text("›", color = Color.White, fontSize = 30.sp)
         }
