@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
@@ -214,10 +216,10 @@ private fun LoginScreen(vm: MainViewModel) {
                             colors = fieldColors,
                             modifier = Modifier.fillMaxWidth()
                         )
-                        NeonButton("Listeyi Aç", selected = true, onClick = { vm.loadM3u(m3u) })
+                        NeonButton("Listeyi Aç", selected = false, onClick = { vm.loadM3u(m3u) })
                         Spacer(Modifier.weight(1f))
                         Box(
-                            Modifier.fillMaxWidth().height(120.dp)
+                            Modifier.fillMaxWidth().height(104.dp)
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(
                                     Brush.linearGradient(
@@ -225,9 +227,25 @@ private fun LoginScreen(vm: MainViewModel) {
                                     )
                                 )
                         ) {
-                            Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
-                                Text("TV için optimize edildi", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Kumanda ile kolay gezinme • okunaklı kartlar", color = TextSoft, fontSize = 14.sp)
+                            Column(
+                                Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    "TV için optimize edildi",
+                                    color = Color.White,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                                Spacer(Modifier.height(5.dp))
+                                Text(
+                                    "Kumanda ile kolay gezinme • okunaklı arayüz",
+                                    color = TextSoft,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
@@ -268,7 +286,7 @@ private fun LoginScreen(vm: MainViewModel) {
 
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Box(Modifier.weight(1f)) {
-                                NeonButton("Giriş Yap", selected = true, onClick = { vm.loadXtream(server, user, pass) })
+                                NeonButton("Giriş Yap", selected = false, onClick = { vm.loadXtream(server, user, pass) })
                             }
                             Box(Modifier.weight(0.9f)) {
                                 NeonButton("Hesap Ekle", selected = false, onClick = { vm.loadXtream(server, user, pass) })
@@ -288,7 +306,7 @@ private fun LoginScreen(vm: MainViewModel) {
                                 )
                             }
                         } else {
-                            Text("İlk başarılı girişten sonra hesabın burada görünür.", color = TextSoft, fontSize = 14.sp)
+                            Text("Başarılı girişler otomatik kaydedilir.", color = TextSoft, fontSize = 14.sp)
                         }
                     }
                 }
@@ -296,6 +314,19 @@ private fun LoginScreen(vm: MainViewModel) {
         }
     }
 }
+
+private fun Modifier.tvAction(onClick: () -> Unit): Modifier =
+    this
+        .onPreviewKeyEvent { event ->
+            if (event.type == KeyEventType.KeyUp &&
+                (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter)
+            ) {
+                onClick()
+                true
+            } else false
+        }
+        .focusable()
+        .clickable(onClick = onClick)
 
 @Composable
 private fun NeonButton(label: String, selected: Boolean, onClick: () -> Unit) {
@@ -313,8 +344,7 @@ private fun NeonButton(label: String, selected: Boolean, onClick: () -> Unit) {
             .fillMaxWidth()
             .height(58.dp)
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(onClick = onClick)
+            .tvAction(onClick)
             .clip(shape)
             .background(background)
             .border(if (focused) 2.dp else 1.dp, borderColor, shape)
@@ -336,8 +366,7 @@ private fun SavedAccountRow(account: SavedLogin, onLogin: () -> Unit, onForget: 
         Modifier
             .fillMaxWidth()
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(onClick = onLogin)
+            .tvAction(onLogin)
             .clip(shape)
             .background(if (focused) Color(0xFF25205A) else Color(0xFF111A38))
             .border(if (focused) 2.dp else 1.dp, if (focused) PurpleLight else Line, shape)
@@ -362,8 +391,7 @@ private fun SmallAction(label: String, onClick: () -> Unit) {
     Box(
         Modifier
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(onClick = onClick)
+            .tvAction(onClick)
             .clip(RoundedCornerShape(12.dp))
             .background(if (focused) Purple else Color(0xFF202A55))
             .border(1.dp, if (focused) PurpleLight else Line, RoundedCornerShape(12.dp))
@@ -516,8 +544,7 @@ private fun NavTile(label: String, selected: Boolean, onClick: () -> Unit) {
             .fillMaxWidth()
             .height(58.dp)
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(onClick = onClick)
+            .tvAction(onClick)
             .clip(shape)
             .background(bg)
             .border(if (focused) 2.dp else 1.dp, if (selected || focused) PurpleLight else Color(0xFF26345F), shape)
@@ -538,8 +565,7 @@ private fun SportChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(onClick = onClick)
+            .tvAction(onClick)
             .clip(shape)
             .background(if (selected || focused) Brush.linearGradient(listOf(Color(0xFF5B32FF), PurpleLight)) else Brush.linearGradient(listOf(Color(0xFF111A38), Color(0xFF101731))))
             .border(if (focused) 2.dp else 1.dp, if (selected || focused) PurpleLight else Line, shape)
@@ -556,33 +582,62 @@ private fun ChannelCard(number: Int, item: IptvItem, onClick: () -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
-            .height(92.dp)
+            .height(104.dp)
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(onClick = onClick)
+            .tvAction(onClick)
             .clip(shape)
             .background(if (focused) Color(0xFF23205A) else PanelSoft)
             .border(if (focused) 2.dp else 1.dp, if (focused) PurpleLight else Color(0xFF26345F), shape)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(number.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(30.dp), contentAlignment = Alignment.CenterStart) {
+                Text(number.toString(), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.width(8.dp))
             Box(
-                Modifier.size(54.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF151B35)),
+                Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF151B35)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(logoLabel(item), color = PurpleLight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(logoLabel(item), color = PurpleLight, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(item.name, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(item.group, color = TextSoft, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                val nameModifier = if (focused) {
+                    Modifier.fillMaxWidth().basicMarquee(iterations = Int.MAX_VALUE)
+                } else {
+                    Modifier.fillMaxWidth()
+                }
+                Text(
+                    item.name,
+                    modifier = nameModifier,
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = if (focused) 1 else 2,
+                    overflow = if (focused) TextOverflow.Clip else TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    item.group.ifBlank { item.sportGroup?.label ?: "Kanal" },
+                    color = TextSoft,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
+            Spacer(Modifier.width(8.dp))
             Box(
-                Modifier.clip(RoundedCornerShape(9.dp)).background(Color(0xFF25205A)).border(1.dp, PurpleLight, RoundedCornerShape(9.dp)).padding(horizontal = 8.dp, vertical = 5.dp)
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF25205A))
+                    .border(1.dp, PurpleLight, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 6.dp, vertical = 4.dp)
             ) {
-                Text(qualityLabel(item.name), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(qualityLabel(item.name), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
-            Text("›", color = Color.White, fontSize = 28.sp)
+            Spacer(Modifier.width(6.dp))
+            Text("›", color = Color.White, fontSize = 22.sp)
         }
     }
 }
@@ -659,15 +714,21 @@ private fun PlayerScreen(item: IptvItem, onBack: () -> Unit) {
             .fillMaxSize()
             .focusRequester(focusRequester)
             .focusable()
-            .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+            .onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                 showOverlay()
                 when (event.key) {
                     Key.DirectionLeft -> {
-                        controller.player.seekTo(max(0L, controller.player.currentPosition - 10_000L)); true
+                        if (overlayVisible) false
+                        else {
+                            controller.player.seekTo(max(0L, controller.player.currentPosition - 10_000L)); true
+                        }
                     }
                     Key.DirectionRight -> {
-                        controller.player.seekTo(controller.player.currentPosition + 10_000L); true
+                        if (overlayVisible) false
+                        else {
+                            controller.player.seekTo(controller.player.currentPosition + 10_000L); true
+                        }
                     }
                     Key.DirectionCenter, Key.Enter -> {
                         if (controller.player.isPlaying) controller.player.pause() else controller.player.play(); true
@@ -710,8 +771,8 @@ private fun PlayerScreen(item: IptvItem, onBack: () -> Unit) {
             }
 
             Column(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 34.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 30.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(formatTime(position), color = Color.White, fontSize = 14.sp)
@@ -732,21 +793,21 @@ private fun PlayerScreen(item: IptvItem, onBack: () -> Unit) {
                     PlayerControlButton("↶ 10", compact = true) {
                         controller.player.seekTo(max(0L, controller.player.currentPosition - 10_000L)); showOverlay()
                     }
-                    Spacer(Modifier.width(16.dp))
+                    Spacer(Modifier.width(10.dp))
                     PlayerControlButton(if (isPlaying) "Ⅱ" else "▶", compact = false) {
                         if (controller.player.isPlaying) controller.player.pause() else controller.player.play(); showOverlay()
                     }
-                    Spacer(Modifier.width(16.dp))
+                    Spacer(Modifier.width(10.dp))
                     PlayerControlButton("10 ↷", compact = true) {
                         controller.player.seekTo(controller.player.currentPosition + 10_000L); showOverlay()
                     }
-                    Spacer(Modifier.width(30.dp))
+                    Spacer(Modifier.width(18.dp))
                     PlayerControlButton(if (muted) "Ses Aç" else "Sessiz", compact = true) {
                         muted = !muted
                         controller.player.volume = if (muted) 0f else 1f
                         showOverlay()
                     }
-                    Spacer(Modifier.width(16.dp))
+                    Spacer(Modifier.width(10.dp))
                     PlayerControlButton("Ayarlar", compact = true) {
                         settingsVisible = !settingsVisible
                         overlayVisible = true
@@ -760,7 +821,7 @@ private fun PlayerScreen(item: IptvItem, onBack: () -> Unit) {
                         Text("Oynatıcı Ayarları", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         Text("• Sol / sağ: 10 saniye geri / ileri", color = TextSoft, fontSize = 14.sp)
                         Text("• OK: oynat / duraklat", color = TextSoft, fontSize = 14.sp)
-                        Text("• Kontroller 3 saniye sonra gizlenir", color = TextSoft, fontSize = 14.sp)
+                        Text("• Kontroller 2 saniye sonra gizlenir", color = TextSoft, fontSize = 14.sp)
                         SmallAction("Kapat") {
                             settingsVisible = false
                             showOverlay()
@@ -778,8 +839,7 @@ private fun SmallPlayerButton(label: String, onClick: () -> Unit) {
     Box(
         Modifier
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(onClick = onClick)
+            .tvAction(onClick)
             .clip(RoundedCornerShape(16.dp))
             .background(Color(0xAA131C3C))
             .border(if (focused) 2.dp else 1.dp, if (focused) PurpleLight else Line, RoundedCornerShape(16.dp))
@@ -792,19 +852,18 @@ private fun SmallPlayerButton(label: String, onClick: () -> Unit) {
 @Composable
 private fun PlayerControlButton(label: String, compact: Boolean, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val size = if (compact) 70.dp else 84.dp
+    val size = if (compact) 52.dp else 62.dp
     Box(
         Modifier
             .size(size)
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .clickable(onClick = onClick)
+            .tvAction(onClick)
             .clip(RoundedCornerShape(50))
             .background(if (focused) Brush.radialGradient(listOf(PurpleLight, Purple)) else Brush.radialGradient(listOf(Color(0xFF1A2550), Color(0xFF11182E))))
             .border(if (focused) 3.dp else 2.dp, if (focused) Color.White else PurpleLight, RoundedCornerShape(50)),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = Color.White, fontSize = if (compact) 13.sp else 30.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = Color.White, fontSize = if (compact) 11.sp else 24.sp, fontWeight = FontWeight.Bold)
     }
 }
 

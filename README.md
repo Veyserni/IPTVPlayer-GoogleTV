@@ -26,3 +26,12 @@ GitHub Actions > Build Google TV APK.
 - Kanal arama alanı eklendi.
 - Oynatıcı ekranına neon mor özel kontrol katmanı eklendi: 10 sn geri/ileri, oynat/duraklat, ses ve ayarlar.
 - Oynatıcı kontrolleri 2 saniye sonra otomatik gizlenir; kumanda etkileşiminde tekrar görünür.
+
+
+## v0.6.6
+- TV kumandasında kısa OK basışı tüm ana butonlarda düzeltildi.
+- Başarılı Xtream girişleri otomatik olarak kayıtlı hesaplara eklenir.
+- Kanal adı alanı büyütüldü; normalde iki satır, odakta kayan yazı olarak gösterilir.
+- Kanal logosu, kalite rozeti ve sağ ok daha kompakt hale getirildi.
+- Oynatıcı alt kontrolleri küçültüldü; 2 saniyelik otomatik gizlenme korunur.
+- Giriş ekranındaki TV bilgi kartı taşma yapmayacak şekilde düzeltildi.

@@ -10,8 +10,8 @@ android {
         applicationId = "com.halit.iptv"
         minSdk = 23
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.6.4"
+        versionCode = 15
+        versionName = "0.6.6"
     }
     buildFeatures { compose = true }
     compileOptions {
