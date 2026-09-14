@@ -288,25 +288,26 @@ private fun LoginScreen(vm: MainViewModel) {
                             Box(Modifier.weight(1f)) {
                                 NeonButton("Giriş Yap", selected = false, onClick = { vm.loadXtream(server, user, pass) })
                             }
-                            Box(Modifier.weight(0.9f)) {
-                                NeonButton("Hesap Ekle", selected = false, onClick = { vm.loadXtream(server, user, pass) })
+                            savedAccounts.firstOrNull()?.let { account ->
+                                Box(Modifier.weight(0.9f)) {
+                                    SavedAccountQuickButton(
+                                        account = account,
+                                        onLogin = { vm.loadSavedAccount(account) }
+                                    )
+                                }
                             }
                         }
 
-                        if (savedAccounts.isNotEmpty()) {
-                            Text("Kayıtlı Hesaplar", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                            savedAccounts.take(2).forEach { account ->
-                                SavedAccountRow(
+                        if (savedAccounts.size > 1) {
+                            Text("Diğer kayıtlı hesaplar", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                            savedAccounts.drop(1).take(2).forEach { account ->
+                                SavedAccountQuickButton(
                                     account = account,
-                                    onLogin = { vm.loadSavedAccount(account) },
-                                    onForget = {
-                                        vm.forgetAccount(account)
-                                        savedAccounts = vm.savedAccounts
-                                    }
+                                    onLogin = { vm.loadSavedAccount(account) }
                                 )
                             }
-                        } else {
-                            Text("Başarılı girişler otomatik kaydedilir.", color = TextSoft, fontSize = 14.sp)
+                        } else if (savedAccounts.isEmpty()) {
+                            Text("Başarılı giriş yaptığında hesap otomatik kaydedilir.", color = TextSoft, fontSize = 14.sp)
                         }
                     }
                 }
@@ -359,28 +360,34 @@ private fun NeonButton(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SavedAccountRow(account: SavedLogin, onLogin: () -> Unit, onForget: () -> Unit) {
+private fun SavedAccountQuickButton(account: SavedLogin, onLogin: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(14.dp)
-    Row(
+    val shape = RoundedCornerShape(16.dp)
+    Box(
         Modifier
             .fillMaxWidth()
+            .height(58.dp)
             .onFocusChanged { focused = it.isFocused }
             .tvAction(onLogin)
             .clip(shape)
-            .background(if (focused) Color(0xFF25205A) else Color(0xFF111A38))
+            .background(
+                if (focused) Brush.linearGradient(listOf(Color(0xFF4A2DFF), Purple))
+                else Brush.linearGradient(listOf(Color(0xFF141D3C), Color(0xFF101731)))
+            )
             .border(if (focused) 2.dp else 1.dp, if (focused) PurpleLight else Line, shape)
-            .padding(horizontal = 16.dp, vertical = 11.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 18.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(account.user, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Text(account.server, color = TextSoft, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallAction("Hızlı Giriş", onLogin)
-            SmallAction("Unut", onForget)
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(account.user, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text("Kayıtlı hesap", color = TextSoft, fontSize = 12.sp, maxLines = 1)
+            }
+            Text("›", color = Color.White, fontSize = 30.sp)
         }
     }
 }

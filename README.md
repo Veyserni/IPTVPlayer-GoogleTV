@@ -35,3 +35,9 @@ GitHub Actions > Build Google TV APK.
 - Kanal logosu, kalite rozeti ve sağ ok daha kompakt hale getirildi.
 - Oynatıcı alt kontrolleri küçültüldü; 2 saniyelik otomatik gizlenme korunur.
 - Giriş ekranındaki TV bilgi kartı taşma yapmayacak şekilde düzeltildi.
+
+
+## v0.6.7
+- Başarılı Xtream girişi otomatik ve kalıcı kaydedilir.
+- Hesap Ekle butonu kaldırıldı.
+- Kayıtlı kullanıcı adı giriş butonunun yanında hızlı giriş kutusu olarak gösterilir.

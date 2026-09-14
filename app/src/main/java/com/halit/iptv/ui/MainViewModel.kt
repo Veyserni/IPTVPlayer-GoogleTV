@@ -116,7 +116,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .putString("server", account.server)
             .putString("user", account.user)
             .putString("pass", account.pass)
-            .apply()
+            .commit()
     }
 
     private fun storeAccounts(accounts: List<SavedLogin>) {
@@ -128,7 +128,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 put("pass", account.pass)
             })
         }
-        prefs.edit().putString("accounts", array.toString()).apply()
+        // commit() kullanıyoruz: kullanıcı başarılı girişten hemen sonra uygulamayı
+        // kapatsa bile kayıt diske yazılmış olsun.
+        prefs.edit().putString("accounts", array.toString()).commit()
     }
 
     private fun clearLegacyIfMatching(account: SavedLogin) {
