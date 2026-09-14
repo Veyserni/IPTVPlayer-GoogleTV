@@ -20,7 +20,7 @@ GitHub Actions > Build Google TV APK.
 - Streaming katalog yüklenirken ana sekme ve Spor alt kategori seçimi artık yeni batch geldiğinde sıfırlanmaz.
 - 2 saniyelik otomatik gizleme yalnızca oynatıcıdaki Liste ve kanal adı overlay'i için geçerlidir.
 
-## v0.6.3 — Neon Mor Okunaklı Arayüz
+## v0.6.4 — Neon Mor Okunaklı Arayüz
 - Giriş ekranı neon mor, yüksek kontrastlı TV tasarımına geçirildi.
 - Spor/kategori ekranı sol menü + üst alt-kategori şeritleri + iki sütun okunaklı kanal kartları şeklinde yenilendi.
 - Kanal arama alanı eklendi.

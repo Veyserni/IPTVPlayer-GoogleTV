@@ -1,7 +1,6 @@
 package com.halit.iptv
 
 import android.os.Bundle
-import android.view.KeyEvent as AndroidKeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
@@ -31,8 +30,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.nativeKeyEvent
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -658,17 +660,16 @@ private fun PlayerScreen(item: IptvItem, onBack: () -> Unit) {
             .focusRequester(focusRequester)
             .focusable()
             .onPreviewKeyEvent { event ->
-                if (event.nativeKeyEvent.action != AndroidKeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 showOverlay()
-                when (event.nativeKeyEvent.keyCode) {
-                    AndroidKeyEvent.KEYCODE_DPAD_LEFT -> {
+                when (event.key) {
+                    Key.DirectionLeft -> {
                         controller.player.seekTo(max(0L, controller.player.currentPosition - 10_000L)); true
                     }
-                    AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    Key.DirectionRight -> {
                         controller.player.seekTo(controller.player.currentPosition + 10_000L); true
                     }
-                    AndroidKeyEvent.KEYCODE_DPAD_CENTER,
-                    AndroidKeyEvent.KEYCODE_ENTER -> {
+                    Key.DirectionCenter, Key.Enter -> {
                         if (controller.player.isPlaying) controller.player.pause() else controller.player.play(); true
                     }
                     else -> false
