@@ -87,10 +87,13 @@ private fun App(vm: MainViewModel) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Android TV bazen TextField IME'sini ekran değişiminden sonra açık bırakabiliyor.
-    // Login ekranından çıkar çıkmaz focus'u temizleyip klavyeyi zorla kapatıyoruz.
-    LaunchedEffect(state) {
-        if (state !is UiState.Login) {
+    // Android TV bazen TextField IME'sini girişten sonra açık bırakabiliyor.
+    // Bunu yalnızca Login ekranından çıkarken bir kez temizliyoruz.
+    // Ready state her yeni M3U batch'inde güncellendiği için `LaunchedEffect(state)` kullanmak
+    // katalog yüklenirken odağı sürekli sıfırlıyordu; bu da kategori/kanal tıklamalarını bozuyordu.
+    val isLoginScreen = state is UiState.Login
+    LaunchedEffect(isLoginScreen) {
+        if (!isLoginScreen) {
             focusManager.clearFocus(force = true)
             keyboardController?.hide()
         }
@@ -287,11 +290,11 @@ private fun LoginScreen(vm: MainViewModel) {
 
                 NeonPanel(Modifier.weight(1.25f).fillMaxHeight()) {
                     Column(
-                        Modifier.fillMaxSize().padding(28.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Xtream Codes", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                        Text("Sunucu bilgileri ile giriş yapın.", color = TextSoft, fontSize = 16.sp)
+                        Text("Xtream Codes", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                        Text("Sunucu bilgileri ile giriş yapın.", color = TextSoft, fontSize = 15.sp)
 
                         if (savedAccounts.isNotEmpty()) {
                             Text("Kayıtlı Hesaplar", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -314,7 +317,7 @@ private fun LoginScreen(vm: MainViewModel) {
                                 }
                             )
                         } else {
-                            Text("Kayıtlı hesap yok. Yeni hesapla giriş yapabilirsin.", color = TextSoft, fontSize = 14.sp)
+                            Text("Yeni hesap bilgilerini gir.", color = TextSoft, fontSize = 13.sp)
                         }
 
                         if (showManualEntry) {
@@ -346,11 +349,6 @@ private fun LoginScreen(vm: MainViewModel) {
                                 hideImeAndClearFocus()
                                 vm.loadXtream(server, user, pass)
                             })
-                            Text(
-                                "Başarılı girişten sonra hesap otomatik kaydedilir.",
-                                color = TextSoft,
-                                fontSize = 13.sp
-                            )
                         }
                     }
                 }
