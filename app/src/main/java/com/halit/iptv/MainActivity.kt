@@ -1,6 +1,8 @@
 package com.halit.iptv
 
+import android.content.Context
 import android.os.Bundle
+import android.view.inputmethod.InputMethodManager
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
@@ -40,6 +42,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -86,6 +89,8 @@ private fun App(vm: MainViewModel) {
     val state = vm.state.collectAsStateWithLifecycle().value
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val rootView = LocalView.current
 
     // Android TV bazen TextField IME'sini girişten sonra açık bırakabiliyor.
     // Bunu yalnızca Login ekranından çıkarken bir kez temizliyoruz.
@@ -96,6 +101,9 @@ private fun App(vm: MainViewModel) {
         if (!isLoginScreen) {
             focusManager.clearFocus(force = true)
             keyboardController?.hide()
+            rootView.clearFocus()
+            (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+                ?.hideSoftInputFromWindow(rootView.windowToken, 0)
         }
     }
 
@@ -189,10 +197,15 @@ private fun LoginScreen(vm: MainViewModel) {
     val firstSavedAccountFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val rootView = LocalView.current
 
     fun hideImeAndClearFocus() {
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
+        rootView.clearFocus()
+        (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.hideSoftInputFromWindow(rootView.windowToken, 0)
     }
 
     LaunchedEffect(savedAccounts.size) {
@@ -255,7 +268,7 @@ private fun LoginScreen(vm: MainViewModel) {
                         })
                         Spacer(Modifier.weight(1f))
                         Box(
-                            Modifier.fillMaxWidth().height(110.dp)
+                            Modifier.fillMaxWidth().height(72.dp)
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(
                                     Brush.linearGradient(
@@ -273,15 +286,6 @@ private fun LoginScreen(vm: MainViewModel) {
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1
-                                )
-                                Spacer(Modifier.height(6.dp))
-                                Text(
-                                    "Kumanda ile kolay gezinme • okunaklı arayüz",
-                                    color = TextSoft,
-                                    fontSize = 13.sp,
-                                    lineHeight = 17.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Clip
                                 )
                             }
                         }
@@ -719,6 +723,9 @@ private fun qualityLabel(name: String): String {
 private fun PlayerScreen(item: IptvItem, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
+    val rootView = LocalView.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val controller = remember { PlayerController(context) }
     val focusRequester = remember { FocusRequester() }
     var overlayVisible by remember(item.url) { mutableStateOf(true) }
@@ -734,7 +741,15 @@ private fun PlayerScreen(item: IptvItem, onBack: () -> Unit) {
         onDispose { controller.release() }
     }
 
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(Unit) {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        rootView.clearFocus()
+        (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.hideSoftInputFromWindow(rootView.windowToken, 0)
+        delay(80)
+        focusRequester.requestFocus()
+    }
 
     LaunchedEffect(item.url, overlayToken) {
         overlayVisible = true
